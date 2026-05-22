@@ -9,29 +9,29 @@
       <span v-if="required" class="text-red-400">*</span>
     </label>
 
-    <!-- Select -->
+    <!-- SELECT -->
     <select
       v-if="type === 'select'"
       :id="inputId"
       :value="modelValue"
       @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
-      class="input-glass appearance-none pr-10
-             bg-[url('data:image/svg+xml,%3Csvg+xmlns=%27http://www.w3.org/2000/svg%27+width=%2712%27+height=%2712%27+viewBox=%270+0+12+12%27%3E%3Cpath+fill=%27%2394a3b8%27+d=%27M6+8L1+3h10z%27/%3E%3C/svg%3E')]
-             bg-no-repeat bg-[right_12px_center]"
+      class="input-glass appearance-none pr-10 bg-no-repeat bg-right"
       :class="{ 'input-error': !!error }"
     >
-      <option value="" disabled class="bg-dark-secondary">{{ placeholder || 'Selecione...' }}</option>
+      <option value="" disabled>
+        {{ placeholder || 'Selecione...' }}
+      </option>
+
       <option
         v-for="opt in options"
         :key="opt.value"
         :value="opt.value"
-        class="bg-dark-secondary"
       >
         {{ opt.label }}
       </option>
     </select>
 
-    <!-- Regular Input -->
+    <!-- INPUT -->
     <input
       v-else
       :id="inputId"
@@ -39,49 +39,63 @@
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
-      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       class="input-glass"
       :class="{ 'input-error': !!error }"
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
 
-    <!-- Error message -->
-    <p class="text-xs text-red-400 min-h-[18px]">{{ error || '' }}</p>
+    <p
+      v-if="error"
+      class="text-xs text-red-400 mt-1"
+    >
+      {{ error }}
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
-interface SelectOption {
-  value: string | number
+interface Option {
   label: string
+  value: string | number
 }
 
 interface Props {
+  modelValue?: string | number
   label?: string
-  type?: string
-  modelValue: string | number
   placeholder?: string
   error?: string
+  type?: string
   required?: boolean
   disabled?: boolean
-  options?: SelectOption[]
+  inputId?: string
+  options?: Option[]
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   type: 'text',
-  placeholder: '',
-  error: '',
-  required: false,
-  disabled: false,
-  options: () => [],
+  inputId: '',
+  options: () => []
 })
 
-defineEmits<{
-  'update:modelValue': [value: string | number]
-}>()
-
-const inputId = computed(
-  () => `field-${props.label?.toLowerCase().replace(/\s+/g, '-') ?? Math.random().toString(36).slice(2)}`
-)
+defineEmits(['update:modelValue'])
 </script>
+
+<style scoped>
+.input-glass {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: white;
+  outline: none;
+}
+
+.input-glass:focus {
+  border-color: #3b82f6;
+}
+
+.input-error {
+  border-color: #ef4444;
+}
+</style>
