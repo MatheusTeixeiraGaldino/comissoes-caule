@@ -56,11 +56,19 @@
 
 <script setup lang="ts">
 
-defineProps({
-  items: {
-    type: Array,
-    default: () => []
-  }
-})
+interface TableItem {
+
+  id: string | number
+
+  nome?: string
+
+  email?: string
+
+  perfil?: string
+}
+
+defineProps<{
+  items: TableItem[]
+}>()
 
 </script>
