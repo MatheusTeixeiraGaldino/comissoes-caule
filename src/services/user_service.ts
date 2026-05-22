@@ -1,37 +1,43 @@
-import type { userModel } from '@/models/userModel'
 import { apiCaule } from './apiCaule'
+import { localUsers } from '@/mock/users'
 
+export async function getLogin(login: string, senha: string) {
 
+  // =========================================
+  // TENTA LOGIN LOCAL PRIMEIRO
+  // =========================================
 
+  const localUser = localUsers.find(
+    (u) => u.login === login && u.senha === senha
+  )
 
+  if (localUser) {
+    return localUser
+  }
 
-export const userService = {
+  // =========================================
+  // SE NÃO ENCONTRAR LOCAL
+  // TENTA API EXTERNA
+  // =========================================
 
+  try {
 
+    const pass = btoa(
+      '@vlog@' + login + ':@vpass@' + senha
+    )
 
-    async getAll(): Promise<userModel[]> {
-        const { data } = await apiCaule.get<userModel[]>('/usuarios/all')
-        console.log('antes de carregar usuarios de online p local')
+    const response = await apiCaule.get(
+      '/usuario/login/' + pass
+    )
 
-        console.log('depois de carregar usuarios de online p local')
-        console.log('data')
-        console.log(data)
-        return data
-    },
+    return response.data
 
-    async getLogin(user: userModel): Promise<userModel[]> {
+  } catch (error) {
 
-        const pass = btoa("@vlog@" + user.login + ":@vpass@" + user.senha);
+    console.error('Erro API externa:', error)
 
-        const { data } = await apiCaule.get<userModel[]>('/usuario/login/' + pass)
-        console.log('depois log usuario')
-
-
-        console.log('data')
-        console.log(data)
-        return data
-    },
-
-
-
+    throw new Error(
+      'Usuário não encontrado localmente e API indisponível'
+    )
+  }
 }
