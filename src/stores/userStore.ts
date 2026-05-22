@@ -3,6 +3,8 @@ import { ref } from 'vue'
 
 import type { User, UserFormData } from '@/types'
 
+import { getLogin } from '@/services/user_service'
+
 import {
   getUsersApi,
   createUserApi,
@@ -10,11 +12,7 @@ import {
   deleteUserApi,
 } from '@/services/api'
 
-import { getLogin } from '@/services/user_service'
-
 import type { userModel } from '@/models/userModel'
-
-const userList = ref<userModel[]>([])
 
 export const useUserStore = defineStore('users', () => {
   const users = ref<User[]>([])
@@ -24,6 +22,8 @@ export const useUserStore = defineStore('users', () => {
   const error = ref<string | null>(null)
 
   const logado = ref(false)
+
+  const userList = ref<userModel[]>([])
 
   async function fetchUsers(): Promise<void> {
     loading.value = true
@@ -35,8 +35,12 @@ export const useUserStore = defineStore('users', () => {
 
       if (response.success && response.data) {
         users.value = response.data
+      } else {
+        error.value = response.message
       }
     } catch (e) {
+      error.value = 'Erro ao carregar usuários.'
+
       console.error(e)
     } finally {
       loading.value = false
@@ -64,31 +68,8 @@ export const useUserStore = defineStore('users', () => {
         success: false,
         message: response.message,
       }
-    } catch (e) {
-      return {
-        success: false,
-        message: 'Erro ao criar usuário.',
-      }
     } finally {
       loading.value = false
-    }
-  }
-
-  async function getUser(user: userModel) {
-    logado.value = false
-
-    try {
-      const response = await getLogin(user, true)
-
-      const data: userModel[] = response
-
-      userList.value = data
-
-      if (userList.value.length > 0) {
-        logado.value = true
-      }
-    } catch (e: any) {
-      console.log(e.message)
     }
   }
 
@@ -99,14 +80,11 @@ export const useUserStore = defineStore('users', () => {
     loading.value = true
 
     try {
-      const response = await updateUserApi(
-        String(id),
-        data
-      )
+      const response = await updateUserApi(id, data)
 
       if (response.success && response.data) {
         const index = users.value.findIndex(
-          (u) => String(u.id) === String(id)
+          (u) => String(u.id) === id
         )
 
         if (index !== -1) {
@@ -123,11 +101,6 @@ export const useUserStore = defineStore('users', () => {
         success: false,
         message: response.message,
       }
-    } catch (e) {
-      return {
-        success: false,
-        message: 'Erro ao atualizar usuário.',
-      }
     } finally {
       loading.value = false
     }
@@ -139,13 +112,11 @@ export const useUserStore = defineStore('users', () => {
     loading.value = true
 
     try {
-      const response = await deleteUserApi(
-        String(id)
-      )
+      const response = await deleteUserApi(id)
 
       if (response.success) {
         users.value = users.value.filter(
-          (u) => String(u.id) !== String(id)
+          (u) => String(u.id) !== id
         )
 
         return {
@@ -158,13 +129,29 @@ export const useUserStore = defineStore('users', () => {
         success: false,
         message: response.message,
       }
-    } catch (e) {
-      return {
-        success: false,
-        message: 'Erro ao excluir usuário.',
-      }
     } finally {
       loading.value = false
+    }
+  }
+
+  async function getUser(
+    login: string,
+    senha: string
+  ) {
+    logado.value = false
+
+    try {
+      const response = await getLogin(login, senha)
+
+      const data: userModel[] = response
+
+      userList.value = data
+
+      if (userList.value.length > 0) {
+        logado.value = true
+      }
+    } catch (e: any) {
+      console.log(e.message)
     }
   }
 
@@ -172,11 +159,12 @@ export const useUserStore = defineStore('users', () => {
     users,
     loading,
     error,
+    logado,
+    userList,
     fetchUsers,
     addUser,
     updateUser,
     removeUser,
-    logado,
     getUser,
   }
 })
