@@ -19,5 +19,12 @@ export const localUsers = [
     login: 'departamentopessoal@otaviolage.com',
     senha: '123456',
     perfil: 'SUPERVISOR'
+  },
+  {
+    id: '3',
+    nome: 'juliano',
+    login: 'juliano.modesto@otaviolage.com',
+    senha: '101010Ab',
+    perfil: 'SUPERVISOR'
   }
 ]
