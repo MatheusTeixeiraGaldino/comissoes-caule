@@ -3,8 +3,6 @@ import { ref } from 'vue'
 
 import type { User, UserFormData } from '@/types'
 
-import { getLogin } from '@/services/user_service'
-
 import {
   getUsersApi,
   createUserApi,
@@ -12,12 +10,13 @@ import {
   deleteUserApi,
 } from '@/services/api'
 
+import { getLogin } from '@/services/user_service'
+
 import type { userModel } from '@/models/userModel'
 
 const userList = ref<userModel[]>([])
 
 export const useUserStore = defineStore('users', () => {
-  // ---------- State ----------
   const users = ref<User[]>([])
 
   const loading = ref(false)
@@ -25,8 +24,6 @@ export const useUserStore = defineStore('users', () => {
   const error = ref<string | null>(null)
 
   const logado = ref(false)
-
-  // ---------- Actions ----------
 
   async function fetchUsers(): Promise<void> {
     loading.value = true
@@ -38,13 +35,9 @@ export const useUserStore = defineStore('users', () => {
 
       if (response.success && response.data) {
         users.value = response.data
-      } else {
-        error.value = response.message
       }
     } catch (e) {
-      error.value = 'Erro ao carregar usuários.'
-
-      console.error('[UserStore] Fetch error:', e)
+      console.error(e)
     } finally {
       loading.value = false
     }
@@ -54,8 +47,6 @@ export const useUserStore = defineStore('users', () => {
     data: UserFormData
   ): Promise<{ success: boolean; message: string }> {
     loading.value = true
-
-    error.value = null
 
     try {
       const response = await createUserApi(data)
@@ -74,8 +65,6 @@ export const useUserStore = defineStore('users', () => {
         message: response.message,
       }
     } catch (e) {
-      console.error('[UserStore] Create error:', e)
-
       return {
         success: false,
         message: 'Erro ao criar usuário.',
@@ -89,15 +78,9 @@ export const useUserStore = defineStore('users', () => {
     logado.value = false
 
     try {
-      console.log('antes response')
-
-      const response = await getLogin(user)
-
-      console.log('depois response')
+      const response = await getLogin(user, true)
 
       const data: userModel[] = response
-
-      console.log(data)
 
       userList.value = data
 
@@ -105,28 +88,25 @@ export const useUserStore = defineStore('users', () => {
         logado.value = true
       }
     } catch (e: any) {
-      console.log('Fetch user erro')
-
       console.log(e.message)
-    } finally {
-      console.log('Fetch user completed')
     }
   }
 
   async function updateUser(
-    id: string | number,
+    id: string,
     data: UserFormData
   ): Promise<{ success: boolean; message: string }> {
     loading.value = true
 
-    error.value = null
-
     try {
-      const response = await updateUserApi(id, data)
+      const response = await updateUserApi(
+        String(id),
+        data
+      )
 
       if (response.success && response.data) {
         const index = users.value.findIndex(
-          (u) => u.id === id
+          (u) => String(u.id) === String(id)
         )
 
         if (index !== -1) {
@@ -144,8 +124,6 @@ export const useUserStore = defineStore('users', () => {
         message: response.message,
       }
     } catch (e) {
-      console.error('[UserStore] Update error:', e)
-
       return {
         success: false,
         message: 'Erro ao atualizar usuário.',
@@ -156,18 +134,18 @@ export const useUserStore = defineStore('users', () => {
   }
 
   async function removeUser(
-    id: string | number
+    id: string
   ): Promise<{ success: boolean; message: string }> {
     loading.value = true
 
-    error.value = null
-
     try {
-      const response = await deleteUserApi(id)
+      const response = await deleteUserApi(
+        String(id)
+      )
 
       if (response.success) {
         users.value = users.value.filter(
-          (u) => u.id !== id
+          (u) => String(u.id) !== String(id)
         )
 
         return {
@@ -181,8 +159,6 @@ export const useUserStore = defineStore('users', () => {
         message: response.message,
       }
     } catch (e) {
-      console.error('[UserStore] Delete error:', e)
-
       return {
         success: false,
         message: 'Erro ao excluir usuário.',
