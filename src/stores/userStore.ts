@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { User, UserFormData } from '@/types'
-import { userService } from '@/services/user_service'
+import { getLogin } from '@/services/user_service'
 import {
   getUsersApi,
   createUserApi,
@@ -71,7 +71,7 @@ export const useUserStore = defineStore('users', () => {
 
     try {
       console.log('antes response')
-      const response = await userService.getLogin(user);
+      const response = await getLogin(user);
       console.log('depois response')
       const data: userModel[] = response;
       console.log(data)
