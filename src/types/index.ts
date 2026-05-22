@@ -16,7 +16,7 @@ export const UserLevelLabels: Record<UserLevel, string> = {
 
 /** Modelo de Usuário */
 export interface User {
-  id: string
+  id: string | number
   email: string
   nome: string
   nivel: UserLevel
