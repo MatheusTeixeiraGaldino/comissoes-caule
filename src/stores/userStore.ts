@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import type { User, UserFormData } from '@/types'
-import type { userModel } from '@/models/userModel'
 
 import { getLogin } from '@/services/user_service'
 
@@ -13,159 +12,119 @@ import {
   deleteUserApi,
 } from '@/services/api'
 
+import type { userModel } from '@/models/userModel'
+
+const userList = ref<userModel[]>([])
+
 export const useUserStore = defineStore('users', () => {
-
-  // =====================================================
-  // STATE
-  // =====================================================
-
+  // ---------- State ----------
   const users = ref<User[]>([])
+
   const loading = ref(false)
+
   const error = ref<string | null>(null)
 
   const logado = ref(false)
 
-  const userList = ref<userModel[]>([])
-
-  // =====================================================
-  // LOGIN
-  // =====================================================
-
-  async function getUser(user: userModel) {
-
-    logado.value = false
-
-    try {
-
-      console.log('antes response')
-
-      const response: any = await getLogin(
-        user.login,
-        user.senha
-      )
-
-      console.log('depois response')
-
-      console.log(response)
-
-      userList.value = [response]
-
-      if (userList.value.length > 0) {
-        logado.value = true
-      }
-
-    } catch (e: any) {
-
-      console.log('Fetch user erro')
-
-      console.log(e.message)
-
-    } finally {
-
-      console.log('Fetch user completed')
-    }
-  }
-
-  // =====================================================
-  // FETCH USERS
-  // =====================================================
+  // ---------- Actions ----------
 
   async function fetchUsers(): Promise<void> {
-
     loading.value = true
 
     error.value = null
 
     try {
-
       const response = await getUsersApi()
 
       if (response.success && response.data) {
-
         users.value = response.data
-
       } else {
-
         error.value = response.message
       }
-
     } catch (e) {
-
       error.value = 'Erro ao carregar usuários.'
 
       console.error('[UserStore] Fetch error:', e)
-
     } finally {
-
       loading.value = false
     }
   }
 
-  // =====================================================
-  // ADD USER
-  // =====================================================
-
   async function addUser(
     data: UserFormData
   ): Promise<{ success: boolean; message: string }> {
-
     loading.value = true
 
     error.value = null
 
     try {
-
       const response = await createUserApi(data)
 
       if (response.success && response.data) {
-
         users.value.push(response.data)
 
         return {
           success: true,
-          message: response.message
+          message: response.message,
         }
       }
 
       return {
         success: false,
-        message: response.message
+        message: response.message,
       }
-
     } catch (e) {
-
       console.error('[UserStore] Create error:', e)
 
       return {
         success: false,
-        message: 'Erro ao criar usuário.'
+        message: 'Erro ao criar usuário.',
       }
-
     } finally {
-
       loading.value = false
     }
   }
 
-  // =====================================================
-  // UPDATE USER
-  // =====================================================
+  async function getUser(user: userModel) {
+    logado.value = false
+
+    try {
+      console.log('antes response')
+
+      const response = await getLogin(user)
+
+      console.log('depois response')
+
+      const data: userModel[] = response
+
+      console.log(data)
+
+      userList.value = data
+
+      if (userList.value.length > 0) {
+        logado.value = true
+      }
+    } catch (e: any) {
+      console.log('Fetch user erro')
+
+      console.log(e.message)
+    } finally {
+      console.log('Fetch user completed')
+    }
+  }
 
   async function updateUser(
-    id: string,
+    id: string | number,
     data: UserFormData
   ): Promise<{ success: boolean; message: string }> {
-
     loading.value = true
 
     error.value = null
 
     try {
-
       const response = await updateUserApi(id, data)
 
       if (response.success && response.data) {
-
         const index = users.value.findIndex(
           (u) => u.id === id
         )
@@ -176,96 +135,72 @@ export const useUserStore = defineStore('users', () => {
 
         return {
           success: true,
-          message: response.message
+          message: response.message,
         }
       }
 
       return {
         success: false,
-        message: response.message
+        message: response.message,
       }
-
     } catch (e) {
-
       console.error('[UserStore] Update error:', e)
 
       return {
         success: false,
-        message: 'Erro ao atualizar usuário.'
+        message: 'Erro ao atualizar usuário.',
       }
-
     } finally {
-
       loading.value = false
     }
   }
 
-  // =====================================================
-  // REMOVE USER
-  // =====================================================
-
   async function removeUser(
-    id: string
+    id: string | number
   ): Promise<{ success: boolean; message: string }> {
-
     loading.value = true
 
     error.value = null
 
     try {
-
       const response = await deleteUserApi(id)
 
       if (response.success) {
-
         users.value = users.value.filter(
           (u) => u.id !== id
         )
 
         return {
           success: true,
-          message: response.message
+          message: response.message,
         }
       }
 
       return {
         success: false,
-        message: response.message
+        message: response.message,
       }
-
     } catch (e) {
-
       console.error('[UserStore] Delete error:', e)
 
       return {
         success: false,
-        message: 'Erro ao excluir usuário.'
+        message: 'Erro ao excluir usuário.',
       }
-
     } finally {
-
       loading.value = false
     }
   }
 
-  // =====================================================
-  // RETURN
-  // =====================================================
-
   return {
-
     users,
     loading,
     error,
-
     fetchUsers,
     addUser,
     updateUser,
     removeUser,
-
     logado,
     getUser,
-
-    userList
   }
 })
