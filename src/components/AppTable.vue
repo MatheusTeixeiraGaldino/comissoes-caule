@@ -8,16 +8,19 @@
 
         <tr>
 
-          <th class="text-left p-4">
-            Nome
+          <th
+            v-for="column in columns"
+            :key="column.key"
+            class="text-left p-4"
+          >
+            {{ column.label }}
           </th>
 
-          <th class="text-left p-4">
-            E-mail
-          </th>
-
-          <th class="text-left p-4">
-            Perfil
+          <th
+            v-if="actions.length"
+            class="text-left p-4"
+          >
+            Ações
           </th>
 
         </tr>
@@ -27,21 +30,33 @@
       <tbody>
 
         <tr
-          v-for="item in items"
+          v-for="item in data"
           :key="item.id"
           class="hover:bg-[#fff7ed]"
         >
 
-          <td class="p-4">
-            {{ item.nome }}
+          <td
+            v-for="column in columns"
+            :key="column.key"
+            class="p-4"
+          >
+            {{ item[column.key] }}
           </td>
 
-          <td class="p-4">
-            {{ item.email }}
-          </td>
+          <td
+            v-if="actions.length"
+            class="p-4 flex gap-2"
+          >
 
-          <td class="p-4">
-            {{ item.perfil }}
+            <button
+              v-for="action in actions"
+              :key="action.label"
+              class="btn-primary"
+              @click="onAction(action.key, item)"
+            >
+              {{ action.label }}
+            </button>
+
           </td>
 
         </tr>
@@ -56,19 +71,36 @@
 
 <script setup lang="ts">
 
+interface TableColumn {
+
+  key: string
+
+  label: string
+}
+
+interface TableAction {
+
+  key: string
+
+  label: string
+}
+
 interface TableItem {
 
   id: string | number
 
-  nome?: string
-
-  email?: string
-
-  perfil?: string
+  [key: string]: any
 }
 
 defineProps<{
-  items: TableItem[]
+
+  columns: TableColumn[]
+
+  data: TableItem[]
+
+  actions: TableAction[]
+
+  onAction: (action: string, item: TableItem) => void
 }>()
 
 </script>
