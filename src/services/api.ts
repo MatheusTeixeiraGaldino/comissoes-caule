@@ -195,7 +195,7 @@ const bearerToken = ref("Bearer 1|8uew7ctJIMHPE9Dy6vq7SYyz7yxZqKMPUEfN7yMk")
 
 /**
  * Faz upload de arquivos PDF para o servidor.
- * Quando o backend estiver pronto, descomentar o código Axios abaixo.
+ * Rastreia erros específicos de cada arquivo e retorna mensagem detalhada.
  */
 export async function uploadFilesApi(
   files: File[],
@@ -252,12 +252,9 @@ export async function uploadFilesApi(
   })
   */
 
-  let resp = {
-    success: true,
-    message: 'Upload concluído.',
-    data: "",
-  }
-
+  // Rastrear arquivos bem-sucedidos e com erro
+  const successFiles: string[] = []
+  const errorFiles: Array<{ name: string; error: string }> = []
 
   for (const file of files) {
     const formData = new FormData()
@@ -291,21 +288,38 @@ export async function uploadFilesApi(
       const response = await axios.post(url.value, formData, {
         headers: { 'Content-Type': 'multipart/form-data', 'Authorization': bearerToken.value },
       })
-
+      successFiles.push(file.name)
     } catch (error: any) {
-
-      resp = {
-        success: false,
-        message: error.response?.data?.message || 'Erro ao enviar arquivos.',
-        data: "",
-      }
-
+      const errorMessage = error.response?.data?.message || 'Erro desconhecido'
+      errorFiles.push({ name: file.name, error: errorMessage })
     }
-
-
   }
 
-  return resp
+  // Construir mensagem de resposta detalhada
+  if (errorFiles.length === 0) {
+    // Todos os arquivos foram enviados com sucesso
+    return {
+      success: true,
+      message: `${successFiles.length} arquivo(s) enviado(s) com sucesso.`,
+      data: { successFiles },
+    }
+  } else if (successFiles.length === 0) {
+    // Todos os arquivos falharam
+    const errorList = errorFiles.map((f) => `• ${f.name}: ${f.error}`).join('\n')
+    return {
+      success: false,
+      message: `Erro ao enviar arquivos:\n${errorList}`,
+      data: { errorFiles },
+    }
+  } else {
+    // Alguns arquivos foram enviados, outros falharam
+    const errorList = errorFiles.map((f) => `• ${f.name}: ${f.error}`).join('\n')
+    return {
+      success: false,
+      message: `${successFiles.length} arquivo(s) enviado(s) com sucesso.\n\nErro ao enviar:\n${errorList}`,
+      data: { successFiles, errorFiles },
+    }
+  }
 
   /*
   try {

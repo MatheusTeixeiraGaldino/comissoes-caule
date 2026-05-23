@@ -75,7 +75,7 @@
           <svg v-else class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </div>
         <h3 class="text-xl font-bold text-slate-100 text-center mb-2">{{ modalTitle }}</h3>
-        <p class="text-slate-300 text-center mb-6">{{ modalMessage }}</p>
+        <div class="text-slate-300 text-center mb-6 whitespace-pre-wrap text-sm">{{ modalMessage }}</div>
         <button class="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg px-4 py-3 transition-colors duration-200" @click="closeModal">
           Fechar
         </button>
