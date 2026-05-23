@@ -1,33 +1,38 @@
-
 <template>
   <div class="animate-fade-in">
     <div class="mb-6">
-      <h1 class="text-2xl font-bold text-white">Upload de Arquivos</h1>
-      <p class="text-sm text-slate-300 mt-1">Selecione e envie arquivos PDF</p>
+      <h1 class="text-2xl font-bold !text-black">Upload de Arquivos</h1>
+      <p class="text-sm !text-black mt-1">Selecione e envie arquivos PDF</p>
     </div>
 
     <!-- Period Selection -->
     <div class="glass-card p-6 mb-6">
-      <h2 class="text-lg font-semibold text-white mb-4">Selecione o Período</h2>
+      <h2 class="text-lg font-semibold !text-black mb-4">Selecione o Período</h2>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="flex flex-col gap-1.5">
-          <label for="dataInicial" class="text-sm font-medium text-slate-300">Data Inicial</label>
+          <label for="dataInicial" class="text-sm font-medium !text-black">
+            Data Inicial
+          </label>
+
           <input
             type="date"
             id="dataInicial"
             v-model="dataInicial"
-            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300"
+            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 !text-black focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300"
           />
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label for="dataFinal" class="text-sm font-medium text-slate-300">Data Final</label>
+          <label for="dataFinal" class="text-sm font-medium !text-black">
+            Data Final
+          </label>
+
           <input
             type="date"
             id="dataFinal"
             v-model="dataFinal"
-            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300"
+            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 !text-black focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300"
           />
         </div>
       </div>
@@ -54,7 +59,7 @@
       <div class="flex flex-col items-center gap-4">
         <div
           class="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300"
-          :class="isDragging ? 'bg-primary/20 text-primary-light' : 'bg-surface text-slate-300'"
+          :class="isDragging ? 'bg-primary/20 !text-black' : 'bg-surface !text-black'"
         >
           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -67,10 +72,13 @@
         </div>
 
         <div>
-          <p class="text-sm font-semibold text-white">
+          <p class="text-sm font-semibold !text-black">
             {{ isDragging ? 'Solte os arquivos aqui' : 'Arraste arquivos PDF ou clique para selecionar' }}
           </p>
-          <p class="text-xs text-slate-300 mt-1">Apenas arquivos .pdf são aceitos</p>
+
+          <p class="text-xs !text-black mt-1">
+            Apenas arquivos .pdf são aceitos
+          </p>
         </div>
       </div>
     </div>
@@ -78,10 +86,12 @@
     <!-- Selected Files -->
     <div v-if="files.length > 0" class="glass-card p-0 overflow-hidden mb-6">
       <div class="px-5 py-4 flex items-center justify-between border-b border-glass">
-        <h3 class="text-sm font-semibold text-slate-200">{{ files.length }} arquivo(s)</h3>
+        <h3 class="text-sm font-semibold !text-black">
+          {{ files.length }} arquivo(s)
+        </h3>
 
         <button
-          class="text-xs text-red-400 hover:text-red-300 font-medium transition-colors"
+          class="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
           @click="files = []"
         >
           Remover todos
@@ -98,62 +108,36 @@
 
     <!-- Send Button -->
     <div v-if="files.length > 0" class="flex items-center justify-between">
-      <p class="text-sm text-slate-300">
-        Total: <span class="text-white font-semibold">{{ totalSize }}</span>
+      <p class="text-sm !text-black">
+        Total:
+        <span class="!text-black font-semibold">{{ totalSize }}</span>
       </p>
 
       <button class="btn-glow" :disabled="uploading" @click="handleUpload">
         <div
           v-if="uploading"
-          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+          class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"
         />
         <span>{{ uploading ? 'Enviando...' : 'Enviar Arquivos' }}</span>
       </button>
     </div>
 
-    <!-- Result Modal -->
+    <!-- Modal -->
     <div
       v-if="showModal"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4"
     >
-      <div
-        class="bg-slate-900 p-6 max-w-md w-full mx-4 border border-slate-700 shadow-2xl rounded-2xl relative flex flex-col"
-      >
-        <div
-          class="flex items-center justify-center w-16 h-16 rounded-full mb-4 mx-auto"
-          :class="modalType === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
-        >
-          <svg
-            v-if="modalType === 'success'"
-            class="w-8 h-8"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-
-          <svg
-            v-else
-            class="w-8 h-8"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </div>
-
-        <h3 class="text-xl font-bold text-white text-center mb-2">
+      <div class="bg-white p-6 max-w-md w-full mx-4 border rounded-2xl relative flex flex-col">
+        <h3 class="text-xl font-bold !text-black text-center mb-2">
           {{ modalTitle }}
         </h3>
 
-        <div class="text-slate-300 text-center mb-6 whitespace-pre-wrap text-sm">
+        <div class="!text-black text-center mb-6 whitespace-pre-wrap text-sm">
           {{ modalMessage }}
         </div>
 
         <button
-          class="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg px-4 py-3 transition-colors duration-200"
+          class="w-full bg-gray-200 hover:bg-gray-300 !text-black font-medium rounded-lg px-4 py-3 transition-colors duration-200"
           @click="closeModal"
         >
           Fechar
@@ -169,7 +153,7 @@ import AppTable from '@/components/AppTable.vue'
 import type { UploadFile, TableColumn, TableAction } from '@/types'
 import { uploadFilesApi } from '@/services/api'
 
-const notify = inject<(type: 'success' | 'error' | 'info' | 'warning', msg: string) => void>('notify')
+const notify = inject('notify')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const uploading = ref(false)
@@ -223,16 +207,12 @@ function handleDrop(e: DragEvent) {
 }
 
 function addFiles(newFiles: File[]) {
-  const pdfs = newFiles.filter((f) => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
+  const pdfs = newFiles.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
 
-  if (pdfs.length < newFiles.length) notify?.('warning', 'Apenas PDFs são aceitos.')
-  if (!pdfs.length) {
-    notify?.('error', 'Nenhum PDF selecionado.')
-    return
-  }
+  if (!pdfs.length) return
 
   files.value.push(
-    ...pdfs.map((file) => ({
+    ...pdfs.map(file => ({
       id: Math.random().toString(36).slice(2),
       file,
       name: file.name,
@@ -241,17 +221,15 @@ function addFiles(newFiles: File[]) {
       progress: 0,
     }))
   )
-
-  notify?.('info', `${pdfs.length} arquivo(s) adicionado(s).`)
 }
 
-function handleFileAction(key: string, row: Record<string, unknown>) {
+function handleFileAction(key: string, row: any) {
   if (key === 'remove') {
-    files.value = files.value.filter((f) => f.id !== row.id)
+    files.value = files.value.filter(f => f.id !== row.id)
   }
 }
 
-function formatSize(bytes: number): string {
+function formatSize(bytes: number) {
   if (!bytes) return '0 B'
   const u = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
@@ -259,50 +237,29 @@ function formatSize(bytes: number): string {
 }
 
 async function handleUpload() {
-  if (!files.value.length) {
-    notify?.('error', 'Selecione arquivos para enviar')
-    return
-  }
-
-  if (!dataInicial.value || !dataFinal.value) {
-    notify?.('error', 'Preencha as datas')
-
-    modalType.value = 'error'
-    modalTitle.value = 'Erro no Envio'
-    modalMessage.value = 'Preencha as datas.'
-    showModal.value = true
-    return
-  }
+  if (!files.value.length) return
 
   uploading.value = true
 
   try {
     const r = await uploadFilesApi(
-      files.value.map((f) => f.file),
+      files.value.map(f => f.file),
       dataInicial.value,
       dataFinal.value
     )
 
     if (r.success) {
-      modalType.value = 'success'
-      modalTitle.value = 'Sucesso!'
-      modalMessage.value = r.message || 'Arquivos enviados com sucesso.'
       showModal.value = true
+      modalTitle.value = 'Sucesso'
+      modalMessage.value = 'Arquivos enviados com sucesso'
       files.value = []
     } else {
-      modalType.value = 'error'
-      modalTitle.value = 'Erro no Envio'
-      modalMessage.value = r.message || 'Ocorreu um erro ao enviar os arquivos.'
       showModal.value = true
+      modalTitle.value = 'Erro'
+      modalMessage.value = r.message || 'Erro ao enviar'
     }
-  } catch {
-    modalType.value = 'error'
-    modalTitle.value = 'Erro no Envio'
-    modalMessage.value = 'Erro ao enviar arquivos.'
-    showModal.value = true
   } finally {
     uploading.value = false
   }
 }
 </script>
-```
