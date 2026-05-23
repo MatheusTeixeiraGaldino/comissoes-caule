@@ -11,20 +11,6 @@
     <nav class="flex flex-col gap-2">
 
       <RouterLink
-        to="/"
-        class="sidebar-item px-4 py-3 rounded-xl font-medium"
-      >
-        Dashboard
-      </RouterLink>
-
-      <RouterLink
-        to="/users"
-        class="sidebar-item px-4 py-3 rounded-xl font-medium"
-      >
-        Usuários
-      </RouterLink>
-
-      <RouterLink
         to="/upload"
         class="sidebar-item px-4 py-3 rounded-xl font-medium"
       >

@@ -44,23 +44,24 @@ body {
 
 .sidebar-item {
 
-  color: var(--color-dark);
+  color: black !important;
 
   transition: 0.2s;
 }
 
 .sidebar-item:hover {
 
-  background: #fff7ed;
+  background: #f3f4f6;
 
-  color: var(--color-primary);
+  color: black !important;
 }
 
 .sidebar-item.active {
 
-  background: var(--color-primary);
+  background: #e5e7eb;
 
-  color: white;
+  color: black !important;
+  font-weight: 700;
 }
 
 /* =========================================

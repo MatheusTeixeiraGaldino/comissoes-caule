@@ -8,7 +8,7 @@
 
       <header class="header h-20 px-8 flex items-center justify-between">
 
-        <h1 class="text-2xl font-bold text-[#2f2f2f]">
+        <h1 class="text-2xl font-bold text-black">
           Sistema de Comissões
         </h1>
 
