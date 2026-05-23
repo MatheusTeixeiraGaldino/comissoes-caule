@@ -143,11 +143,12 @@ export const useUserStore = defineStore('users', () => {
     try {
       const response = await getLogin(login, senha)
 
-      const data: userModel[] = response
+      // O getLogin pode retornar um objeto único (do mock) ou um array (da API)
+      const data: userModel[] = Array.isArray(response) ? response : [response]
 
       userList.value = data
 
-      if (userList.value.length > 0) {
+      if (userList.value.length > 0 && userList.value[0]) {
         logado.value = true
       }
     } catch (e: any) {

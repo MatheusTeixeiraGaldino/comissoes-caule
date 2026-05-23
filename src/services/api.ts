@@ -16,24 +16,31 @@ import { ref } from 'vue'
 let mockUsers: (User & { senha: string })[] = [
   {
     id: '1',
-    email: 'admin@admin.com',
+    email: 'admin',
     senha: '123456',
     nome: 'Administrador',
     nivel: UserLevel.ADMIN,
   },
   {
     id: '2',
-    email: 'user@user.com',
+    email: 'supervisor',
     senha: '123456',
-    nome: 'Operador',
+    nome: 'Supervisor',
     nivel: UserLevel.OPERATOR,
   },
   {
     id: '3',
-    email: 'viewer@viewer.com',
+    email: 'departamentopessoal@otaviolage.com',
     senha: '123456',
-    nome: 'Visualizador',
-    nivel: UserLevel.VIEWER,
+    nome: 'Matheus',
+    nivel: UserLevel.OPERATOR,
+  },
+  {
+    id: '4',
+    email: 'juliano.modesto@otaviolage.com',
+    senha: '101010Ab',
+    nome: 'juliano',
+    nivel: UserLevel.OPERATOR,
   },
 ]
 
