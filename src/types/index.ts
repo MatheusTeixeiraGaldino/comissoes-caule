@@ -57,6 +57,9 @@ export interface UploadFile {
   size: number
   status: 'pending' | 'uploading' | 'success' | 'error'
   progress: number
+  extractedCpf?: string
+  extractedDataInicio?: string
+  extractedDataFim?: string
 }
 
 /** Definição de coluna para a tabela genérica */

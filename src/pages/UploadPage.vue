@@ -172,6 +172,9 @@ function closeModal() {
 
 const fileColumns: TableColumn[] = [
   { key: 'name', label: 'Nome do Arquivo' },
+  { key: 'extractedCpf', label: 'CPF' },
+  { key: 'extractedDataInicio', label: 'Início' },
+  { key: 'extractedDataFim', label: 'Fim' },
   { key: 'sizeFormatted', label: 'Tamanho', align: 'right', width: '120px' },
 ]
 
@@ -183,9 +186,18 @@ const fileTableData = computed(() =>
   files.value.map((f) => ({
     id: f.id,
     name: f.name,
+    extractedCpf: f.extractedCpf || '-',
+    extractedDataInicio: f.extractedDataInicio ? formatDate(f.extractedDataInicio) : '-',
+    extractedDataFim: f.extractedDataFim ? formatDate(f.extractedDataFim) : '-',
     sizeFormatted: formatSize(f.size),
   }))
 )
+
+function formatDate(dateStr: string) {
+  if (!dateStr || dateStr.length !== 10) return dateStr
+  const [year, month, day] = dateStr.split('-')
+  return `${day}/${month}/${year}`
+}
 
 const totalSize = computed(() =>
   formatSize(files.value.reduce((s, f) => s + f.size, 0))
@@ -206,20 +218,62 @@ function handleDrop(e: DragEvent) {
   if (e.dataTransfer?.files) addFiles(Array.from(e.dataTransfer.files))
 }
 
+function extractDataFromFilename(filename: string) {
+  // Padrao: ddmmaaaa_ddmmaaaa_00000000000_xxxxxxx
+  const nameWithoutExt = filename.replace(/\.pdf$/i, '')
+  const parts = nameWithoutExt.split('_')
+
+  if (parts.length >= 3) {
+    const dataInicioRaw = parts[0]
+    const dataFimRaw = parts[1]
+    const cpf = parts[2]
+
+    const formatDate = (raw: string) => {
+      if (raw.length === 8) {
+        const d = raw.substring(0, 2)
+        const m = raw.substring(2, 4)
+        const y = raw.substring(4, 8)
+        return `${y}-${m}-${d}`
+      }
+      return undefined
+    }
+
+    return {
+      dataInicio: formatDate(dataInicioRaw),
+      dataFim: formatDate(dataFimRaw),
+      cpf: cpf.length === 11 ? cpf : undefined
+    }
+  }
+  return {}
+}
+
 function addFiles(newFiles: File[]) {
   const pdfs = newFiles.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
 
   if (!pdfs.length) return
 
   files.value.push(
-    ...pdfs.map(file => ({
-      id: Math.random().toString(36).slice(2),
-      file,
-      name: file.name,
-      size: file.size,
-      status: 'pending' as const,
-      progress: 0,
-    }))
+    ...pdfs.map(file => {
+      const extracted = extractDataFromFilename(file.name)
+      
+      // Se for o primeiro arquivo e tiver datas extraídas, preenche os campos globais
+      if (files.value.length === 0 && extracted.dataInicio && extracted.dataFim) {
+        dataInicial.value = extracted.dataInicio
+        dataFinal.value = extracted.dataFim
+      }
+
+      return {
+        id: Math.random().toString(36).slice(2),
+        file,
+        name: file.name,
+        size: file.size,
+        status: 'pending' as const,
+        progress: 0,
+        extractedCpf: extracted.cpf,
+        extractedDataInicio: extracted.dataInicio,
+        extractedDataFim: extracted.dataFim
+      }
+    })
   )
 }
 
@@ -243,7 +297,12 @@ async function handleUpload() {
 
   try {
     const r = await uploadFilesApi(
-      files.value.map(f => f.file),
+      files.value.map(f => ({
+        file: f.file,
+        cpf: f.extractedCpf,
+        dataInicio: f.extractedDataInicio,
+        dataFim: f.extractedDataFim
+      })),
       dataInicial.value,
       dataFinal.value
     )

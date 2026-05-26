@@ -204,67 +204,35 @@ const bearerToken = ref("Bearer 1|8uew7ctJIMHPE9Dy6vq7SYyz7yxZqKMPUEfN7yMk")
  * Faz upload de arquivos PDF para o servidor.
  * Rastreia erros específicos de cada arquivo e retorna mensagem detalhada.
  */
+export interface FileWithMetadata {
+  file: File;
+  cpf?: string;
+  dataInicio?: string;
+  dataFim?: string;
+}
+
 export async function uploadFilesApi(
-  files: File[],
-  dataInicio: string,
-  dataFim: string,
+  files: FileWithMetadata[],
+  globalDataInicio: string,
+  globalDataFim: string,
 ): Promise<ApiResponse> {
 
   await delay(1500)
-
-  // ---- MOCK: simula upload bem-sucedido ----
-  //console.log(`[Mock] Upload de ${files.length} arquivo(s):`, files.map((f) => f.name))
-  /*
-  return {
-    success: true,
-    message: `${files.length} arquivo(s) enviado(s) com sucesso.`,
-  }
-    */
-
-  // ---- REAL: descomentar quando o backend estiver disponível ----
-  /*
-  const formData = new FormData()
-
-
-
-  files.forEach((file) => {
-    formData.append(
-      'tipo',
-      'colaborador'
-    );
-
-    formData.append(
-      'identificador',
-      file.name
-    );
-
-    formData.append(
-      'data_periodo_inicio',
-      dataInicio
-    );
-
-    formData.append(
-      'data_periodo_fim',
-      dataFim
-    );
-
-    formData.append(
-      'arquivo',
-      file
-    );
-
-
-
-
-  })
-  */
 
   // Rastrear arquivos bem-sucedidos e com erro
   const successFiles: string[] = []
   const errorFiles: Array<{ name: string; error: string }> = []
 
-  for (const file of files) {
+  for (const item of files) {
+    const { file, cpf, dataInicio, dataFim } = item
     const formData = new FormData()
+
+    // Prioriza o CPF extraído do nome, se não houver, usa o nome do arquivo (fallback)
+    const identificador = cpf || file.name
+
+    // Prioriza as datas extraídas do nome, se não houver, usa as globais do formulário
+    const dInicio = dataInicio || globalDataInicio
+    const dFim = dataFim || globalDataFim
 
     formData.append(
       'tipo',
@@ -273,17 +241,17 @@ export async function uploadFilesApi(
 
     formData.append(
       'identificador',
-      file.name.toString()
+      identificador
     );
 
     formData.append(
       'data_periodo_inicio',
-      dataInicio
+      dInicio
     );
 
     formData.append(
       'data_periodo_fim',
-      dataFim
+      dFim
     );
 
     formData.append(
