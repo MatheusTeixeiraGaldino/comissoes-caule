@@ -152,6 +152,11 @@ import { ref, computed, inject } from 'vue'
 import AppTable from '@/components/AppTable.vue'
 import type { UploadFile, TableColumn, TableAction } from '@/types'
 import { uploadFilesApi } from '@/services/api'
+import { 
+  extractDataFromFilename, 
+  formatDateForDisplay, 
+  formatFileSize 
+} from '@/utils/fileUtils'
 
 const notify = inject('notify')
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -187,20 +192,14 @@ const fileTableData = computed(() =>
     id: f.id,
     name: f.name,
     extractedCpf: f.extractedCpf || '-',
-    extractedDataInicio: f.extractedDataInicio ? formatDate(f.extractedDataInicio) : '-',
-    extractedDataFim: f.extractedDataFim ? formatDate(f.extractedDataFim) : '-',
-    sizeFormatted: formatSize(f.size),
+    extractedDataInicio: f.extractedDataInicio ? formatDateForDisplay(f.extractedDataInicio) : '-',
+    extractedDataFim: f.extractedDataFim ? formatDateForDisplay(f.extractedDataFim) : '-',
+    sizeFormatted: formatFileSize(f.size),
   }))
 )
 
-function formatDate(dateStr: string) {
-  if (!dateStr || dateStr.length !== 10) return dateStr
-  const [year, month, day] = dateStr.split('-')
-  return `${day}/${month}/${year}`
-}
-
 const totalSize = computed(() =>
-  formatSize(files.value.reduce((s, f) => s + f.size, 0))
+  formatFileSize(files.value.reduce((s, f) => s + f.size, 0))
 )
 
 function triggerFileInput() {
@@ -216,35 +215,6 @@ function handleFileSelect(e: Event) {
 function handleDrop(e: DragEvent) {
   isDragging.value = false
   if (e.dataTransfer?.files) addFiles(Array.from(e.dataTransfer.files))
-}
-
-function extractDataFromFilename(filename: string) {
-  // Padrao: ddmmaaaa_ddmmaaaa_00000000000_xxxxxxx
-  const nameWithoutExt = filename.replace(/\.pdf$/i, '')
-  const parts = nameWithoutExt.split('_')
-
-  if (parts.length >= 3) {
-    const dataInicioRaw = parts[0]
-    const dataFimRaw = parts[1]
-    const cpf = parts[2]
-
-    const formatDate = (raw: string) => {
-      if (raw.length === 8) {
-        const d = raw.substring(0, 2)
-        const m = raw.substring(2, 4)
-        const y = raw.substring(4, 8)
-        return `${y}-${m}-${d}`
-      }
-      return undefined
-    }
-
-    return {
-      dataInicio: formatDate(dataInicioRaw),
-      dataFim: formatDate(dataFimRaw),
-      cpf: cpf.length === 11 ? cpf : undefined
-    }
-  }
-  return {}
 }
 
 function addFiles(newFiles: File[]) {
@@ -283,12 +253,7 @@ function handleFileAction(key: string, row: any) {
   }
 }
 
-function formatSize(bytes: number) {
-  if (!bytes) return '0 B'
-  const u = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${u[i]}`
-}
+
 
 async function handleUpload() {
   if (!files.value.length) return
