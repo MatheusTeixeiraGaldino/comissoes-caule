@@ -14,7 +14,14 @@
         to="/upload"
         class="sidebar-item px-4 py-3 rounded-xl font-medium"
       >
-        Upload
+        Upload Automático
+      </RouterLink>
+
+      <RouterLink
+        to="/upload-periodo"
+        class="sidebar-item px-4 py-3 rounded-xl font-medium"
+      >
+        Upload por Período
       </RouterLink>
 
     </nav>

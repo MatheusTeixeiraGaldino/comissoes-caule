@@ -1,11 +1,42 @@
 <template>
   <div class="animate-fade-in">
     <div class="mb-6">
-      <h1 class="text-2xl font-bold !text-black">Upload de Arquivos</h1>
-      <p class="text-sm !text-black mt-1">Selecione e envie arquivos PDF</p>
+      <h1 class="text-2xl font-bold !text-black">Upload por Período</h1>
+      <p class="text-sm !text-black mt-1">Selecione o período e envie arquivos PDF com o nome sendo o CPF</p>
     </div>
 
+    <!-- Period Selection -->
+    <div class="glass-card p-6 mb-6">
+      <h2 class="text-lg font-semibold !text-black mb-4">Selecione o Período</h2>
 
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label for="dataInicial" class="text-sm font-medium !text-black">
+            Data Inicial
+          </label>
+
+          <input
+            type="date"
+            id="dataInicial"
+            v-model="dataInicial"
+            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 !text-black focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label for="dataFinal" class="text-sm font-medium !text-black">
+            Data Final
+          </label>
+
+          <input
+            type="date"
+            id="dataFinal"
+            v-model="dataFinal"
+            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 !text-black focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300"
+          />
+        </div>
+      </div>
+    </div>
 
     <!-- Drop Zone -->
     <div
@@ -46,7 +77,7 @@
           </p>
 
           <p class="text-xs !text-black mt-1">
-            Apenas arquivos .pdf são aceitos
+            Apenas arquivos .pdf são aceitos. O nome do arquivo deve ser o CPF.
           </p>
         </div>
       </div>
@@ -82,7 +113,7 @@
         <span class="!text-black font-semibold">{{ totalSize }}</span>
       </p>
 
-      <button class="btn-glow" :disabled="uploading || files.length === 0" @click="handleUpload">
+      <button class="btn-glow" :disabled="uploading || !dataInicial || !dataFinal" @click="handleUpload">
         <div
           v-if="uploading"
           class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"
@@ -122,7 +153,6 @@ import AppTable from '@/components/AppTable.vue'
 import type { UploadFile, TableColumn, TableAction } from '@/types'
 import { uploadFilesApi } from '@/services/api'
 import { 
-  extractDataFromFilename, 
   formatDateForDisplay, 
   formatFileSize 
 } from '@/utils/fileUtils'
@@ -136,7 +166,6 @@ const dataInicial = ref('')
 const dataFinal = ref('')
 
 const showModal = ref(false)
-const modalType = ref<'success' | 'error'>('success')
 const modalTitle = ref('')
 const modalMessage = ref('')
 
@@ -146,9 +175,6 @@ function closeModal() {
 
 const fileColumns: TableColumn[] = [
   { key: 'name', label: 'Nome do Arquivo' },
-  { key: 'extractedCpf', label: 'CPF' },
-  { key: 'extractedDataInicio', label: 'Início' },
-  { key: 'extractedDataFim', label: 'Fim' },
   { key: 'sizeFormatted', label: 'Tamanho', align: 'right', width: '120px' },
 ]
 
@@ -160,9 +186,6 @@ const fileTableData = computed(() =>
   files.value.map((f) => ({
     id: f.id,
     name: f.name,
-    extractedCpf: f.extractedCpf || '-',
-    extractedDataInicio: f.extractedDataInicio ? formatDateForDisplay(f.extractedDataInicio) : '-',
-    extractedDataFim: f.extractedDataFim ? formatDateForDisplay(f.extractedDataFim) : '-',
     sizeFormatted: formatFileSize(f.size),
   }))
 )
@@ -193,13 +216,8 @@ function addFiles(newFiles: File[]) {
 
   files.value.push(
     ...pdfs.map(file => {
-      const extracted = extractDataFromFilename(file.name)
-      
-      // Se for o primeiro arquivo e tiver datas extraídas, preenche os campos globais
-      if (files.value.length === 0 && extracted.dataInicio && extracted.dataFim) {
-        dataInicial.value = extracted.dataInicio
-        dataFinal.value = extracted.dataFim
-      }
+      // No modo por período, o CPF é o nome do arquivo sem extensão
+      const cpf = file.name.replace(/\.pdf$/i, '').replace(/\D/g, '')
 
       return {
         id: Math.random().toString(36).slice(2),
@@ -208,9 +226,7 @@ function addFiles(newFiles: File[]) {
         size: file.size,
         status: 'pending' as const,
         progress: 0,
-        extractedCpf: extracted.cpf,
-        extractedDataInicio: extracted.dataInicio,
-        extractedDataFim: extracted.dataFim
+        extractedCpf: cpf.length === 11 ? cpf : undefined
       }
     })
   )
@@ -222,10 +238,8 @@ function handleFileAction(key: string, row: any) {
   }
 }
 
-
-
 async function handleUpload() {
-  if (!files.value.length) return
+  if (!files.value.length || !dataInicial.value || !dataFinal.value) return
 
   uploading.value = true
 
@@ -234,8 +248,7 @@ async function handleUpload() {
       files.value.map(f => ({
         file: f.file,
         cpf: f.extractedCpf,
-        dataInicio: f.extractedDataInicio,
-        dataFim: f.extractedDataFim
+        // No modo por período, usamos as datas globais selecionadas
       })),
       dataInicial.value,
       dataFinal.value

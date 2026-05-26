@@ -9,6 +9,7 @@ import { useUserStore } from '@/stores/userStore'
 import LoginPage from '@/pages/LoginPage.vue'
 import UsersPage from '@/pages/UsersPage.vue'
 import UploadPage from '@/pages/UploadPage.vue'
+import UploadPeriodPage from '@/pages/UploadPeriodPage.vue'
 import LogoutPage from '@/pages/LogoutPage.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 
@@ -51,8 +52,18 @@ const routes: RouteRecordRaw[] = [
         component: UploadPage,
         meta: {
           requiresAuth: true,
-          requiredLevel: UserLevel.VIEWER, // Todos os níveis
-          title: 'Upload',
+          requiredLevel: UserLevel.VIEWER,
+          title: 'Upload Automático',
+        },
+      },
+      {
+        path: 'upload-periodo',
+        name: 'UploadPeriodo',
+        component: UploadPeriodPage,
+        meta: {
+          requiresAuth: true,
+          requiredLevel: UserLevel.VIEWER,
+          title: 'Upload por Período',
         },
       },
       {
