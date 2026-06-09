@@ -60,6 +60,9 @@ export interface UploadFile {
   extractedCpf?: string
   extractedDataInicio?: string
   extractedDataFim?: string
+  nomeColaborador?: string
+  dataInicioRaw?: string
+  dataFimRaw?: string
 }
 
 /** Definição de coluna para a tabela genérica */

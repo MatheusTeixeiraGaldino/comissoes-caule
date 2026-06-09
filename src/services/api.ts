@@ -209,6 +209,9 @@ export interface FileWithMetadata {
   cpf?: string;
   dataInicio?: string;
   dataFim?: string;
+  nomeColaborador?: string;
+  dataInicioRaw?: string;
+  dataFimRaw?: string;
 }
 
 export async function uploadFilesApi(
@@ -224,7 +227,7 @@ export async function uploadFilesApi(
   const errorFiles: Array<{ name: string; error: string }> = []
 
   for (const item of files) {
-    const { file, cpf, dataInicio, dataFim } = item
+    const { file, cpf, dataInicio, dataFim, nomeColaborador, dataInicioRaw, dataFimRaw } = item
     const formData = new FormData()
 
     // Prioriza o CPF extraído do nome, se não houver, usa o nome do arquivo (fallback)
@@ -254,9 +257,16 @@ export async function uploadFilesApi(
       dFim
     );
 
+    // Renomear o arquivo para o padrão: Comissão_ddmmaaaa_a_ddmmaaaa_xxxxxxxx.pdf
+    let finalFile = file;
+    if (dataInicioRaw && dataFimRaw && nomeColaborador) {
+      const newFileName = `Comissão_${dataInicioRaw}_a_${dataFimRaw}_${nomeColaborador}.pdf`;
+      finalFile = new File([file], newFileName, { type: file.type });
+    }
+
     formData.append(
       'arquivo',
-      file
+      finalFile
     );
 
     try {

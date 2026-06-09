@@ -210,7 +210,10 @@ function addFiles(newFiles: File[]) {
         progress: 0,
         extractedCpf: extracted.cpf,
         extractedDataInicio: extracted.dataInicio,
-        extractedDataFim: extracted.dataFim
+        extractedDataFim: extracted.dataFim,
+        nomeColaborador: extracted.nomeColaborador,
+        dataInicioRaw: extracted.dataInicioRaw,
+        dataFimRaw: extracted.dataFimRaw
       }
     })
   )
@@ -235,7 +238,10 @@ async function handleUpload() {
         file: f.file,
         cpf: f.extractedCpf,
         dataInicio: f.extractedDataInicio,
-        dataFim: f.extractedDataFim
+        dataFim: f.extractedDataFim,
+        nomeColaborador: f.nomeColaborador,
+        dataInicioRaw: f.dataInicioRaw,
+        dataFimRaw: f.dataFimRaw
       })),
       dataInicial.value,
       dataFinal.value

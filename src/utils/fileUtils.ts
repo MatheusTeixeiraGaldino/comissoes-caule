@@ -6,6 +6,9 @@ export interface ExtractedFileData {
   dataInicio?: string;
   dataFim?: string;
   cpf?: string;
+  nomeColaborador?: string;
+  dataInicioRaw?: string;
+  dataFimRaw?: string;
 }
 
 /**
@@ -16,15 +19,20 @@ export function extractDataFromFilename(filename: string): ExtractedFileData {
   const nameWithoutExt = filename.replace(/\.pdf$/i, '');
   const parts = nameWithoutExt.split('_');
 
-  if (parts.length >= 3) {
+  if (parts.length >= 4) {
     const dataInicioRaw = parts[0];
     const dataFimRaw = parts[1];
     const cpf = parts[2];
+    // O nome pode conter underscores, então pegamos tudo a partir do índice 3
+    const nomeColaborador = parts.slice(3).join('_');
 
     return {
       dataInicio: formatRawDateToISO(dataInicioRaw),
       dataFim: formatRawDateToISO(dataFimRaw),
-      cpf: cpf.length === 11 ? cpf : undefined
+      cpf: cpf.length === 11 ? cpf : undefined,
+      nomeColaborador: nomeColaborador,
+      dataInicioRaw: dataInicioRaw,
+      dataFimRaw: dataFimRaw
     };
   }
   return {};
@@ -34,7 +42,7 @@ export function extractDataFromFilename(filename: string): ExtractedFileData {
  * Converte data no formato ddmmaaaa para yyyy-mm-dd (ISO)
  */
 export function formatRawDateToISO(rawDate: string): string | undefined {
-  if (rawDate.length === 8) {
+  if (rawDate && rawDate.length === 8) {
     const d = rawDate.substring(0, 2);
     const m = rawDate.substring(2, 4);
     const y = rawDate.substring(4, 8);
