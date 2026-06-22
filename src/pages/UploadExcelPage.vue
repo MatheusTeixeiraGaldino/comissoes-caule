@@ -36,7 +36,7 @@
             {{ isDragging ? 'Solte os arquivos aqui' : 'Arraste arquivos Excel ou clique para selecionar' }}
           </p>
           <p class="text-xs !text-black mt-1">
-            Apenas arquivos .xlsx e .xls são aceitos. O nome do arquivo deve ser o CPF.
+            Apenas .xlsx e .xls. Nome do arquivo: <span class="font-mono">ddmmaaaa_ddmmaaaa_CPF_NomeColaborador.xlsx</span>
           </p>
         </div>
       </div>
@@ -55,7 +55,9 @@
           <thead>
             <tr>
               <th class="text-left p-4">Nome do Arquivo</th>
-              <th class="text-left p-4">CPF Detectado</th>
+              <th class="text-left p-4">CPF</th>
+              <th class="text-left p-4">Início</th>
+              <th class="text-left p-4">Fim</th>
               <th class="text-left p-4">Status</th>
               <th class="text-right p-4">Tamanho</th>
               <th class="text-left p-4">Ações</th>
@@ -66,8 +68,10 @@
               <td class="p-4 font-medium text-sm">{{ item.name }}</td>
               <td class="p-4 text-sm">
                 <span v-if="item.cpf" class="text-green-700 font-mono">{{ item.cpf }}</span>
-                <span v-else class="text-red-500 text-xs">CPF não detectado</span>
+                <span v-else class="text-red-500 text-xs">-</span>
               </td>
+              <td class="p-4 text-sm">{{ item.dataInicioDisplay || '-' }}</td>
+              <td class="p-4 text-sm">{{ item.dataFimDisplay || '-' }}</td>
               <td class="p-4 text-sm">
                 <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium" :class="statusClass(item.status)">
                   <span v-if="item.status === 'converting' || item.status === 'uploading'"
@@ -89,28 +93,13 @@
       </div>
     </div>
 
-    <!-- Period + Send -->
-    <div v-if="files.length > 0" class="card mb-6 p-6">
-      <h2 class="text-base font-semibold !text-black mb-4">Selecione o Período</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium !text-black">Data Inicial</label>
-          <input type="date" v-model="dataInicial"
-            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 !text-black focus:outline-none focus:border-primary transition-all duration-300" />
-        </div>
-        <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium !text-black">Data Final</label>
-          <input type="date" v-model="dataFinal"
-            class="bg-surface/50 border border-glass rounded-lg px-4 py-2.5 !text-black focus:outline-none focus:border-primary transition-all duration-300" />
-        </div>
-      </div>
-      <div class="flex items-center justify-between">
-        <p class="text-sm !text-black">Total: <span class="font-semibold">{{ totalSize }}</span></p>
-        <button class="btn-primary" :disabled="uploading || !dataInicial || !dataFinal" @click="handleUpload">
-          <div v-if="uploading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2" />
-          {{ uploading ? 'Processando...' : 'Converter e Enviar' }}
-        </button>
-      </div>
+    <!-- Send Button -->
+    <div v-if="files.length > 0" class="flex items-center justify-between">
+      <p class="text-sm !text-black">Total: <span class="font-semibold">{{ totalSize }}</span></p>
+      <button class="btn-primary" :disabled="uploading || files.length === 0" @click="handleUpload">
+        <div v-if="uploading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2" />
+        {{ uploading ? 'Processando...' : 'Converter e Enviar' }}
+      </button>
     </div>
 
     <!-- Modal -->
@@ -129,7 +118,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { uploadFilesApi } from '@/services/api'
-import { formatFileSize } from '@/utils/fileUtils'
+import { formatFileSize, extractDataFromFilename, formatDateForDisplay } from '@/utils/fileUtils'
 
 // -------------------------------------------------------
 // Types
@@ -142,6 +131,13 @@ interface ExcelFile {
   size: number
   rawFile: File
   cpf?: string
+  dataInicio?: string
+  dataFim?: string
+  dataInicioDisplay?: string
+  dataFimDisplay?: string
+  nomeColaborador?: string
+  dataInicioRaw?: string
+  dataFimRaw?: string
   status: FileStatus
   pdfBlob?: Blob
 }
@@ -153,8 +149,6 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const uploading = ref(false)
 const files = ref<ExcelFile[]>([])
-const dataInicial = ref('')
-const dataFinal = ref('')
 const showModal = ref(false)
 const modalTitle = ref('')
 const modalMessage = ref('')
@@ -190,20 +184,10 @@ function statusClass(s: FileStatus): string {
   return map[s]
 }
 
-function extractCpfFromName(filename: string): string | undefined {
-  const base = filename.replace(/\.(xlsx|xls)$/i, '')
-  const digits = base.replace(/\D/g, '')
-  return digits.length === 11 ? digits : undefined
-}
-
 // -------------------------------------------------------
-// Conversão Excel → PDF sem dependência externa
-// Lê o binário do .xlsx (que é um ZIP), extrai o XML
-// da planilha e converte para HTML → Blob PDF
+// Conversão Excel → PDF (sem dependência de tipos)
 // -------------------------------------------------------
 async function convertExcelToPdf(file: File): Promise<Blob> {
-  // Usa o import dinâmico — o Vite resolve em runtime, sem checagem de tipos
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   const XLSX = await import('xlsx')
 
@@ -218,12 +202,7 @@ async function convertExcelToPdf(file: File): Promise<Blob> {
         workbook.SheetNames.forEach((sheetName: string) => {
           const sheet = workbook.Sheets[sheetName]
           const sheetHtml = XLSX.utils.sheet_to_html(sheet)
-          fullHtml += `
-            <h2 style="font-family:Arial,sans-serif;margin:16px 0 8px;font-size:14px;color:#555;">
-              ${sheetName}
-            </h2>
-            ${sheetHtml}
-          `
+          fullHtml += `<h2 style="font-family:Arial,sans-serif;margin:16px 0 8px;font-size:14px;color:#555;">${sheetName}</h2>${sheetHtml}`
         })
 
         const html = `<!DOCTYPE html>
@@ -265,13 +244,24 @@ function handleDrop(e: DragEvent) {
 function addFiles(newFiles: File[]) {
   const excels = newFiles.filter(f => /\.(xlsx|xls)$/i.test(f.name))
   if (!excels.length) return
+
   excels.forEach(file => {
+    // Usa a mesma função do Upload Automático para extrair dados do nome
+    const extracted = extractDataFromFilename(file.name)
+
     files.value.push({
       id: Math.random().toString(36).slice(2),
       name: file.name,
       size: file.size,
       rawFile: file,
-      cpf: extractCpfFromName(file.name),
+      cpf: extracted.cpf,
+      dataInicio: extracted.dataInicio,
+      dataFim: extracted.dataFim,
+      dataInicioDisplay: extracted.dataInicio ? formatDateForDisplay(extracted.dataInicio) : undefined,
+      dataFimDisplay: extracted.dataFim ? formatDateForDisplay(extracted.dataFim) : undefined,
+      nomeColaborador: extracted.nomeColaborador,
+      dataInicioRaw: extracted.dataInicioRaw,
+      dataFimRaw: extracted.dataFimRaw,
       status: 'pending',
     })
   })
@@ -285,7 +275,7 @@ function removeFile(id: string) {
 // Upload
 // -------------------------------------------------------
 async function handleUpload() {
-  if (!files.value.length || !dataInicial.value || !dataFinal.value) return
+  if (!files.value.length) return
   uploading.value = true
 
   for (const item of files.value) {
@@ -309,15 +299,28 @@ async function handleUpload() {
     return
   }
 
-  const filesForApi = readyFiles.map(item => ({
-    file: new File([item.pdfBlob!], item.name.replace(/\.(xlsx|xls)$/i, '.pdf'), { type: 'application/pdf' }),
-    cpf: item.cpf,
-  }))
+  const filesForApi = readyFiles.map(item => {
+    // Renomeia igual ao Upload Automático: Comissão_ddmmaaaa_a_ddmmaaaa_NomeColaborador.pdf
+    let pdfName = item.name.replace(/\.(xlsx|xls)$/i, '.pdf')
+    if (item.dataInicioRaw && item.dataFimRaw && item.nomeColaborador) {
+      pdfName = `Comissão_${item.dataInicioRaw}_a_${item.dataFimRaw}_${item.nomeColaborador}.pdf`
+    }
+
+    return {
+      file: new File([item.pdfBlob!], pdfName, { type: 'application/pdf' }),
+      cpf: item.cpf,
+      dataInicio: item.dataInicio,
+      dataFim: item.dataFim,
+      nomeColaborador: item.nomeColaborador,
+      dataInicioRaw: item.dataInicioRaw,
+      dataFimRaw: item.dataFimRaw,
+    }
+  })
 
   readyFiles.forEach(f => (f.status = 'uploading'))
 
   try {
-    const r = await uploadFilesApi(filesForApi, dataInicial.value, dataFinal.value)
+    const r = await uploadFilesApi(filesForApi, '', '')
     readyFiles.forEach(f => (f.status = r.success ? 'success' : 'error'))
     showModal.value = true
     modalTitle.value = r.success ? 'Sucesso' : 'Erro'
