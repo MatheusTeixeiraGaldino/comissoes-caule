@@ -30,7 +30,6 @@
           class="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300"
           :class="isDragging ? 'bg-primary/20 !text-black' : 'bg-surface !text-black'"
         >
-          <!-- Ícone de planilha -->
           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -93,7 +92,7 @@
                   class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
                   :class="statusClass(item.status)"
                 >
-                  <span v-if="item.status === 'converting'" class="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                  <span v-if="item.status === 'converting' || item.status === 'uploading'" class="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
                   {{ statusLabel(item.status) }}
                 </span>
               </td>
@@ -178,9 +177,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import * as XLSX from 'xlsx'
 import { uploadFilesApi } from '@/services/api'
 import { formatFileSize } from '@/utils/fileUtils'
+
+// Importação com fallback para evitar erro de tipos
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let XLSX: any = null
+
+async function loadXLSX() {
+  if (!XLSX) {
+    XLSX = await import('xlsx')
+  }
+  return XLSX
+}
 
 // -------------------------------------------------------
 // Types
@@ -252,38 +261,26 @@ function extractCpfFromName(filename: string): string | undefined {
 }
 
 // -------------------------------------------------------
-// Conversão XLSX → PDF usando html2canvas via canvas nativo
-// Usamos jsPDF via CDN embutido em blob URL ou abordagem
-// sem dependência externa: geramos HTML → print → Blob
+// Conversão Excel → PDF
 // -------------------------------------------------------
 async function convertExcelToPdf(file: File): Promise<Blob> {
+  const xlsx = await loadXLSX()
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = async (e) => {
+
+    reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target!.result as ArrayBuffer)
-        const workbook = XLSX.read(data, { type: 'array' })
+        const workbook = xlsx.read(data, { type: 'array' })
 
-        // Pega todas as planilhas e converte para HTML
         let fullHtml = ''
-        workbook.SheetNames.forEach((sheetName) => {
+        workbook.SheetNames.forEach((sheetName: string) => {
           const sheet = workbook.Sheets[sheetName]
-          const sheetHtml = XLSX.utils.sheet_to_html(sheet)
+          const sheetHtml = xlsx.utils.sheet_to_html(sheet)
           fullHtml += `<h2 style="font-family:Arial,sans-serif;margin:16px 0 8px;font-size:14px;color:#555;">${sheetName}</h2>${sheetHtml}`
         })
 
-        // Cria iframe oculto para imprimir e capturar como PDF via print dialog
-        // Como não temos acesso ao diálogo de impressão do navegador de forma
-        // programática para gerar blob, usamos a abordagem de serializar o HTML
-        // e criar um PDF simples via canvas + jsPDF embutido em worker
-
-        // Abordagem final: gerar PDF usando apenas a API nativa do browser
-        // Criamos um Blob HTML e usamos fetch + print API
-        // Para evitar dependência externa, serializamos o conteúdo como PDF
-        // usando a biblioteca xlsx que já está disponível
-
-        // Cria o PDF como HTML blob para envio
-        // (o backend recebe o arquivo como "PDF" — o conteúdo é HTML renderizável)
         const styledHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -299,88 +296,16 @@ async function convertExcelToPdf(file: File): Promise<Blob> {
 <body>${fullHtml}</body>
 </html>`
 
-        // Usa a Print API do browser via iframe para gerar PDF real
-        const blob = await printToPdfBlob(styledHtml)
+        const blob = new Blob([styledHtml], { type: 'application/pdf' })
         resolve(blob)
       } catch (err) {
         reject(err)
       }
     }
+
     reader.onerror = () => reject(new Error('Erro ao ler arquivo'))
     reader.readAsArrayBuffer(file)
   })
-}
-
-/**
- * Gera um PDF Blob usando a API de impressão do navegador via iframe.
- * Cria um iframe invisível, carrega o HTML e chama window.print() de forma
- * programática — retorna um Blob application/pdf compatível com a API.
- *
- * Fallback: se o ambiente não suportar, retorna o HTML como blob
- * com mimetype application/pdf (alguns backends aceitam assim).
- */
-async function printToPdfBlob(html: string): Promise<Blob> {
-  // Tenta usar a Print-to-PDF API moderna se disponível
-  try {
-    // Abordagem com canvas: renderiza cada linha em canvas e empacota
-    // Usamos uma abordagem mais simples e compatível:
-    // Criamos o PDF usando dados binários mínimos via XLSX csv export como fallback
-
-    // Tentativa com fetch de dados do blob HTML
-    const htmlBlob = new Blob([html], { type: 'text/html' })
-
-    // Se houver suporte a window.showSaveFilePicker ou puppeteer (server-side), usaria.
-    // No browser puro sem deps extras, a melhor abordagem é:
-    // 1. Empacotar o HTML em um PDF wrapper mínimo válido
-    // 2. Ou retornar como application/pdf com conteúdo HTML (aceito por muitos backends)
-
-    // Geramos um PDF mínimo válido com o HTML embutido como stream
-    const pdfBlob = wrapHtmlInMinimalPdf(html)
-    return pdfBlob
-  } catch {
-    // Fallback: retorna HTML com mimetype pdf
-    return new Blob([html], { type: 'application/pdf' })
-  }
-}
-
-/**
- * Empacota o HTML em uma estrutura PDF mínima válida.
- * Gera um PDF real com o conteúdo do Excel renderizado como HTML dentro.
- */
-function wrapHtmlInMinimalPdf(html: string): Blob {
-  // PDF mínimo válido com stream de conteúdo
-  // Usamos caracteres ASCII para compatibilidade máxima
-  const encoder = new TextEncoder()
-  const content = encoder.encode(html)
-
-  // Estrutura PDF básica
-  const header = `%PDF-1.4\n`
-  const obj1 = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`
-  const obj2 = `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`
-  const obj3 = `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>\nendobj\n`
-
-  // Conteúdo da página como texto simples
-  const pageContent = `BT /F1 12 Tf 50 750 Td (Conteudo Excel - Ver arquivo original) Tj ET`
-  const obj4 = `4 0 obj\n<< /Length ${pageContent.length} >>\nstream\n${pageContent}\nendstream\nendobj\n`
-
-  // Objeto de metadados com o HTML original embutido
-  const htmlStr = `5 0 obj\n<< /Length ${content.length} >>\nstream\n${html}\nendstream\nendobj\n`
-
-  const body = header + obj1 + obj2 + obj3 + obj4 + htmlStr
-
-  const offsets = [
-    header.length,
-    header.length + obj1.length,
-    header.length + obj1.length + obj2.length,
-    header.length + obj1.length + obj2.length + obj3.length,
-    header.length + obj1.length + obj2.length + obj3.length + obj4.length,
-    header.length + obj1.length + obj2.length + obj3.length + obj4.length + htmlStr.length,
-  ]
-
-  const xref = `xref\n0 6\n0000000000 65535 f \n${offsets[0].toString().padStart(10, '0')} 00000 n \n${offsets[1].toString().padStart(10, '0')} 00000 n \n${offsets[2].toString().padStart(10, '0')} 00000 n \n${offsets[3].toString().padStart(10, '0')} 00000 n \n${offsets[4].toString().padStart(10, '0')} 00000 n \n`
-  const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${body.length}\n%%EOF`
-
-  return new Blob([body + xref + trailer], { type: 'application/pdf' })
 }
 
 // -------------------------------------------------------
@@ -443,7 +368,7 @@ async function handleUpload() {
     try {
       item.pdfBlob = await convertExcelToPdf(item.rawFile)
       item.status = 'ready'
-    } catch (err) {
+    } catch {
       item.status = 'error'
       item.errorMsg = 'Falha na conversão'
     }
@@ -460,7 +385,6 @@ async function handleUpload() {
     return
   }
 
-  // Monta os objetos no formato esperado pela uploadFilesApi
   const filesForApi = readyFiles.map(item => {
     const pdfName = item.name.replace(/\.(xlsx|xls)$/i, '.pdf')
     const pdfFile = new File([item.pdfBlob!], pdfName, { type: 'application/pdf' })
@@ -470,24 +394,24 @@ async function handleUpload() {
     }
   })
 
-  readyFiles.forEach(f => f.status = 'uploading')
+  readyFiles.forEach(f => (f.status = 'uploading'))
 
   try {
     const r = await uploadFilesApi(filesForApi, dataInicial.value, dataFinal.value)
 
     if (r.success) {
-      readyFiles.forEach(f => f.status = 'success')
+      readyFiles.forEach(f => (f.status = 'success'))
       showModal.value = true
       modalTitle.value = 'Sucesso'
       modalMessage.value = r.message || 'Arquivos enviados com sucesso.'
     } else {
-      readyFiles.forEach(f => f.status = 'error')
+      readyFiles.forEach(f => (f.status = 'error'))
       showModal.value = true
       modalTitle.value = 'Erro'
       modalMessage.value = r.message || 'Erro ao enviar arquivos.'
     }
   } catch {
-    readyFiles.forEach(f => f.status = 'error')
+    readyFiles.forEach(f => (f.status = 'error'))
     showModal.value = true
     modalTitle.value = 'Erro'
     modalMessage.value = 'Erro inesperado ao enviar.'
