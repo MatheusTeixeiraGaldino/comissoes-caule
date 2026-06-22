@@ -10,11 +10,9 @@ import LoginPage from '@/pages/LoginPage.vue'
 import UsersPage from '@/pages/UsersPage.vue'
 import UploadPage from '@/pages/UploadPage.vue'
 import UploadPeriodPage from '@/pages/UploadPeriodPage.vue'
+import UploadExcelPage from '@/pages/UploadExcelPage.vue'
 import LogoutPage from '@/pages/LogoutPage.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
-
-
-
 
 const routes: RouteRecordRaw[] = [
   {
@@ -67,6 +65,16 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'upload-excel',
+        name: 'UploadExcel',
+        component: UploadExcelPage,
+        meta: {
+          requiresAuth: true,
+          requiredLevel: UserLevel.VIEWER,
+          title: 'Upload Excel',
+        },
+      },
+      {
         path: 'logout',
         name: 'Logout',
         component: LogoutPage,
@@ -75,11 +83,9 @@ const routes: RouteRecordRaw[] = [
           title: 'Sair',
         },
       },
-
     ],
   },
   {
-    // Rota catch-all — redireciona para login
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },
@@ -90,28 +96,19 @@ const router = createRouter({
   routes,
 })
 
-// ============================================================
-// Navigation Guards
-// ============================================================
-
 router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
 
-  // Atualiza título da página
   document.title = to.meta.title
     ? `${to.meta.title} — Upload Caule`
     : 'Upload Caule'
 
-  // Se a rota requer autenticação
   if (to.meta.requiresAuth !== false && to.path !== '/login') {
     if (!userStore.logado) {
       return next('/login')
     }
-
-
   }
 
-  // Se já está autenticado e tenta ir para login, redireciona
   if (to.path === '/login' && userStore.logado) {
     return next(userStore.logado ? '/users' : '/upload')
   }
