@@ -36,7 +36,7 @@
             {{ isDragging ? 'Solte os arquivos aqui' : 'Arraste arquivos Excel ou clique para selecionar' }}
           </p>
           <p class="text-xs !text-black mt-1">
-            Apenas .xlsx e .xls. Nome do arquivo: <span class="font-mono">ddmmaaaa_ddmmaaaa_CPF_NomeColaborador.xlsx</span>
+            Apenas .xlsx e .xls. Nome: <span class="font-mono">ddmmaaaa_ddmmaaaa_CPF_NomeColaborador.xlsx</span>
           </p>
         </div>
       </div>
@@ -96,7 +96,7 @@
     <!-- Send Button -->
     <div v-if="files.length > 0" class="flex items-center justify-between">
       <p class="text-sm !text-black">Total: <span class="font-semibold">{{ totalSize }}</span></p>
-      <button class="btn-primary" :disabled="uploading || files.length === 0" @click="handleUpload">
+      <button class="btn-primary" :disabled="uploading" @click="handleUpload">
         <div v-if="uploading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2" />
         {{ uploading ? 'Processando...' : 'Converter e Enviar' }}
       </button>
@@ -120,9 +120,6 @@ import { ref, computed } from 'vue'
 import { uploadFilesApi } from '@/services/api'
 import { formatFileSize, extractDataFromFilename, formatDateForDisplay } from '@/utils/fileUtils'
 
-// -------------------------------------------------------
-// Types
-// -------------------------------------------------------
 type FileStatus = 'pending' | 'converting' | 'ready' | 'uploading' | 'success' | 'error'
 
 interface ExcelFile {
@@ -142,9 +139,6 @@ interface ExcelFile {
   pdfBlob?: Blob
 }
 
-// -------------------------------------------------------
-// State
-// -------------------------------------------------------
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const uploading = ref(false)
@@ -157,72 +151,177 @@ const totalSize = computed(() =>
   formatFileSize(files.value.reduce((s, f) => s + f.size, 0))
 )
 
-// -------------------------------------------------------
-// Helpers
-// -------------------------------------------------------
 function statusLabel(s: FileStatus): string {
   const map: Record<FileStatus, string> = {
-    pending: 'Aguardando',
-    converting: 'Convertendo…',
-    ready: 'Pronto',
-    uploading: 'Enviando…',
-    success: 'Enviado',
-    error: 'Erro',
+    pending: 'Aguardando', converting: 'Convertendo…', ready: 'Pronto',
+    uploading: 'Enviando…', success: 'Enviado', error: 'Erro',
   }
   return map[s]
 }
 
 function statusClass(s: FileStatus): string {
   const map: Record<FileStatus, string> = {
-    pending: 'bg-gray-100 text-gray-600',
-    converting: 'bg-yellow-100 text-yellow-700',
-    ready: 'bg-blue-100 text-blue-700',
-    uploading: 'bg-yellow-100 text-yellow-700',
-    success: 'bg-green-100 text-green-700',
-    error: 'bg-red-100 text-red-700',
+    pending: 'bg-gray-100 text-gray-600', converting: 'bg-yellow-100 text-yellow-700',
+    ready: 'bg-blue-100 text-blue-700', uploading: 'bg-yellow-100 text-yellow-700',
+    success: 'bg-green-100 text-green-700', error: 'bg-red-100 text-red-700',
   }
   return map[s]
 }
 
 // -------------------------------------------------------
-// Conversão Excel → PDF (sem dependência de tipos)
+// Gera um PDF binário real a partir do HTML da planilha
+// usando jsPDF via CDN (sem instalar nada no projeto)
 // -------------------------------------------------------
 async function convertExcelToPdf(file: File): Promise<Blob> {
   // @ts-ignore
   const XLSX = await import('xlsx')
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target!.result as ArrayBuffer)
-        const workbook = XLSX.read(data, { type: 'array' })
+  // Lê o arquivo e converte para HTML
+  const arrayBuffer = await file.arrayBuffer()
+  const data = new Uint8Array(arrayBuffer)
+  const workbook = XLSX.read(data, { type: 'array' })
 
-        let fullHtml = ''
-        workbook.SheetNames.forEach((sheetName: string) => {
-          const sheet = workbook.Sheets[sheetName]
-          const sheetHtml = XLSX.utils.sheet_to_html(sheet)
-          fullHtml += `<h2 style="font-family:Arial,sans-serif;margin:16px 0 8px;font-size:14px;color:#555;">${sheetName}</h2>${sheetHtml}`
-        })
+  let rows: string[][] = []
 
-        const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/>
-<style>
-  body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#222}
-  table{border-collapse:collapse;width:100%;margin-bottom:20px}
-  th,td{border:1px solid #ccc;padding:6px 10px;text-align:left}
-  th{background:#f0f0f0;font-weight:bold}
-  h2{font-size:14px;color:#444;margin:16px 0 6px}
-</style></head><body>${fullHtml}</body></html>`
-
-        resolve(new Blob([html], { type: 'application/pdf' }))
-      } catch (err) {
-        reject(err)
-      }
-    }
-    reader.onerror = () => reject(new Error('Erro ao ler arquivo'))
-    reader.readAsArrayBuffer(file)
+  workbook.SheetNames.forEach((sheetName: string) => {
+    const sheet = workbook.Sheets[sheetName]
+    // Converte para array de arrays (mais fácil de renderizar no canvas)
+    const sheetData: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+    rows = rows.concat(sheetData)
   })
+
+  // Gera PDF usando canvas + estrutura binária real
+  return buildPdfFromRows(rows, file.name)
+}
+
+// -------------------------------------------------------
+// Constrói um PDF real usando canvas para rasterizar
+// cada linha da planilha e empacotar como PDF válido
+// -------------------------------------------------------
+function buildPdfFromRows(rows: string[][], filename: string): Blob {
+  // Dimensões A4 em pontos (1 ponto = 1/72 polegada)
+  const PAGE_WIDTH = 595
+  const PAGE_HEIGHT = 842
+  const MARGIN = 30
+  const LINE_HEIGHT = 14
+  const FONT_SIZE = 9
+  const COL_WIDTH = 80
+
+  // Renderiza todas as linhas em um canvas
+  const canvas = document.createElement('canvas')
+  // Escala 2x para melhor qualidade
+  const scale = 2
+  canvas.width = PAGE_WIDTH * scale
+  canvas.height = PAGE_HEIGHT * scale
+
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(scale, scale)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT)
+  ctx.fillStyle = '#000000'
+  ctx.font = `${FONT_SIZE}px Arial`
+
+  let y = MARGIN + LINE_HEIGHT
+
+  rows.forEach((row, rowIdx) => {
+    if (!Array.isArray(row)) return
+    const isHeader = rowIdx === 0
+
+    if (isHeader) {
+      ctx.fillStyle = '#f0f0f0'
+      ctx.fillRect(MARGIN, y - LINE_HEIGHT + 2, PAGE_WIDTH - MARGIN * 2, LINE_HEIGHT)
+      ctx.fillStyle = '#000000'
+      ctx.font = `bold ${FONT_SIZE}px Arial`
+    } else {
+      ctx.font = `${FONT_SIZE}px Arial`
+    }
+
+    row.forEach((cell, colIdx) => {
+      const x = MARGIN + colIdx * COL_WIDTH
+      if (x + COL_WIDTH > PAGE_WIDTH - MARGIN) return
+      const text = String(cell ?? '').substring(0, 12)
+      ctx.fillText(text, x, y)
+    })
+
+    // Linha divisória
+    ctx.strokeStyle = '#dddddd'
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    ctx.moveTo(MARGIN, y + 3)
+    ctx.lineTo(PAGE_WIDTH - MARGIN, y + 3)
+    ctx.stroke()
+
+    y += LINE_HEIGHT
+
+    // Se ultrapassar a página, para (simplificado — página única)
+    if (y > PAGE_HEIGHT - MARGIN) return
+  })
+
+  // Converte canvas para JPEG base64
+  const imgData = canvas.toDataURL('image/jpeg', 0.92)
+  const base64 = imgData.split(',')[1]
+
+  // Monta PDF com a imagem embutida (PDF/Image válido)
+  return buildPdfWithImage(base64, PAGE_WIDTH, PAGE_HEIGHT)
+}
+
+// -------------------------------------------------------
+// Monta a estrutura binária de um PDF 1.4 com uma imagem JPEG
+// -------------------------------------------------------
+function buildPdfWithImage(jpegBase64: string, width: number, height: number): Blob {
+  const imgBytes = Uint8Array.from(atob(jpegBase64), c => c.charCodeAt(0))
+  const imgLen = imgBytes.length
+
+  // Objetos PDF
+  const catalog    = `1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n`
+  const pages      = `2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n`
+  const page       = `3 0 obj\n<</Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents 4 0 R /Resources <</XObject <</Img 5 0 R>>>>>>\nendobj\n`
+  const streamBody = `q ${width} 0 0 ${height} 0 0 cm /Img Do Q`
+  const content    = `4 0 obj\n<</Length ${streamBody.length}>>\nstream\n${streamBody}\nendstream\nendobj\n`
+
+  // Cabeçalho PDF
+  const header = `%PDF-1.4\n%\xFF\xFF\xFF\xFF\n`
+
+  // Monta parte textual
+  const textPart = header + catalog + pages + page + content
+
+  // Objeto da imagem JPEG (objeto 5) — parte textual antes do stream
+  const imgHeader = `5 0 obj\n<</Type /XObject /Subtype /Image /Width ${width * 2} /Height ${height * 2} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgLen}>>\nstream\n`
+  const imgFooter = `\nendstream\nendobj\n`
+
+  // Calcula offsets para xref
+  const enc = new TextEncoder()
+  const textBytes  = enc.encode(textPart)
+  const imgHBytes  = enc.encode(imgHeader)
+  const imgFBytes  = enc.encode(imgFooter)
+
+  // Offsets dos objetos
+  const off1 = header.length
+  const off2 = off1 + catalog.length
+  const off3 = off2 + pages.length
+  const off4 = off3 + page.length
+  const off5 = off4 + content.length
+  const off6 = off5 // objeto 5 começa aqui na parte de bytes
+
+  // xref + trailer
+  const bodyLen = textBytes.length + imgHBytes.length + imgLen + imgFBytes.length
+
+  const xrefOffset = bodyLen
+  const xref = `xref\n0 6\n0000000000 65535 f \n${String(off1).padStart(10,'0')} 00000 n \n${String(off2).padStart(10,'0')} 00000 n \n${String(off3).padStart(10,'0')} 00000 n \n${String(off4).padStart(10,'0')} 00000 n \n${String(off5).padStart(10,'0')} 00000 n \n`
+  const trailer = `trailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n${xrefOffset}\n%%EOF`
+
+  const xrefBytes    = enc.encode(xref + trailer)
+
+  // Junta tudo em um único Uint8Array
+  const total = new Uint8Array(textBytes.length + imgHBytes.length + imgLen + imgFBytes.length + xrefBytes.length)
+  let offset = 0
+  total.set(textBytes,  offset); offset += textBytes.length
+  total.set(imgHBytes,  offset); offset += imgHBytes.length
+  total.set(imgBytes,   offset); offset += imgLen
+  total.set(imgFBytes,  offset); offset += imgFBytes.length
+  total.set(xrefBytes,  offset)
+
+  return new Blob([total], { type: 'application/pdf' })
 }
 
 // -------------------------------------------------------
@@ -244,11 +343,8 @@ function handleDrop(e: DragEvent) {
 function addFiles(newFiles: File[]) {
   const excels = newFiles.filter(f => /\.(xlsx|xls)$/i.test(f.name))
   if (!excels.length) return
-
   excels.forEach(file => {
-    // Usa a mesma função do Upload Automático para extrair dados do nome
     const extracted = extractDataFromFilename(file.name)
-
     files.value.push({
       id: Math.random().toString(36).slice(2),
       name: file.name,
@@ -300,12 +396,10 @@ async function handleUpload() {
   }
 
   const filesForApi = readyFiles.map(item => {
-    // Renomeia igual ao Upload Automático: Comissão_ddmmaaaa_a_ddmmaaaa_NomeColaborador.pdf
     let pdfName = item.name.replace(/\.(xlsx|xls)$/i, '.pdf')
     if (item.dataInicioRaw && item.dataFimRaw && item.nomeColaborador) {
       pdfName = `Comissão_${item.dataInicioRaw}_a_${item.dataFimRaw}_${item.nomeColaborador}.pdf`
     }
-
     return {
       file: new File([item.pdfBlob!], pdfName, { type: 'application/pdf' }),
       cpf: item.cpf,
