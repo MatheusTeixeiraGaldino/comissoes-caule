@@ -28,7 +28,7 @@
   to="/upload-excel"
   class="sidebar-item px-4 py-3 rounded-xl font-medium"
 >
-  Upload Excel (EM DESENVOLVIMENTO <strong>NÃO UTILIZAR</strong>)
+  Upload Excel (Em desenvolvimento <strong>Não Utilizar</strong>)
 </RouterLink>
 
     </nav>
