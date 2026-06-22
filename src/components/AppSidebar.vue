@@ -24,12 +24,12 @@
         Upload por Período
       </RouterLink>
 
-      <RouterLink
-        to="/upload-excel"
-        class="sidebar-item px-4 py-3 rounded-xl font-medium"
-      >
-        Upload Excel
-      </RouterLink>
+     <RouterLink
+  to="/upload-excel"
+  class="sidebar-item px-4 py-3 rounded-xl font-medium"
+>
+  Upload Excel (EM DESENVOLVIMENTO <strong>NÃO UTILIZAR</strong>)
+</RouterLink>
 
     </nav>
 
